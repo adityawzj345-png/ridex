@@ -1,0 +1,6 @@
+/* Global App Specific Styles (if any) */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}

@@ -1,0 +1,82 @@
+.booking-page {
+  padding: 60px 5%;
+  min-height: 80vh;
+}
+
+.booking-container {
+  display: flex;
+  gap: 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.booking-details {
+  flex: 1;
+  padding: 40px;
+}
+
+.booking-details h2 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.price-tag {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 40px;
+}
+
+.summary-box {
+  background: rgba(0,0,0,0.2);
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.summary-title {
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text-muted);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.summary-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 20px 0;
+}
+
+.summary-row.total {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+
+.booking-form-wrapper {
+  flex: 1.2;
+  padding: 40px;
+}
+
+.form-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.booking-submit {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.1rem;
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .booking-container {
+    flex-direction: column;
+  }
+}
