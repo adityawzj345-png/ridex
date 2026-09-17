@@ -41,6 +41,19 @@ app.register_blueprint(payment_bp, url_prefix='/api/payment')
 # Create tables if they don't exist
 with app.app_context():
     db.create_all()
+    
+    # Auto-seed the database with bikes if it is empty
+    from models import Bike
+    if Bike.query.count() == 0:
+        demo_bikes = [
+            Bike(name="Ninja ZX-10R", brand="Kawasaki", type="Sport", price_per_hour=45.0, image_url="/bikes/sport.jpg"),
+            Bike(name="Iron 883", brand="Harley-Davidson", type="Cruiser", price_per_hour=55.0, image_url="/bikes/cruiser.jpg"),
+            Bike(name="Vespa Primavera", brand="Vespa", type="Scooter", price_per_hour=15.0, image_url="/bikes/scooter.jpg"),
+            Bike(name="CB300R", brand="Honda", type="Commuter", price_per_hour=25.0, image_url="/bikes/commuter.jpg")
+        ]
+        db.session.bulk_save_objects(demo_bikes)
+        db.session.commit()
+        print("Database seeded successfully with default bikes.")
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
