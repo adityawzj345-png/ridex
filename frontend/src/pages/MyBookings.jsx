@@ -100,10 +100,13 @@ export default function MyBookings() {
                     {booking.bike_brand ? `${booking.bike_brand} ${booking.bike_name}` : `Bike #${booking.bike_id}`}
                   </p>
                   
-                  {/* Stations Info */}
+                  {/* Locations Info */}
                   <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', margin: '8px 0 14px 0', fontSize: '0.85rem', color: '#bbb'}}>
-                    <span>📍 <strong>Pickup:</strong> {booking.pickup_station_name || 'Central Hub'}</span>
-                    <span>🏁 <strong>Return:</strong> {booking.dropoff_station_name || 'Central Hub'}</span>
+                    <span>📍 <strong>Pickup:</strong> {booking.pickup_location || booking.pickup_station_name || 'Central Hub'}</span>
+                    <span>🏁 <strong>Drop-off:</strong> {booking.dropoff_location || booking.dropoff_station_name || 'Central Hub'}</span>
+                    {booking.whatsapp_number && (
+                      <span style={{color: '#25D366'}}>💬 <strong>WhatsApp:</strong> {booking.whatsapp_number}</span>
+                    )}
                   </div>
 
                   <div className="booking-dates">
@@ -121,7 +124,18 @@ export default function MyBookings() {
                     <span className="amount">₹{booking.total_price.toFixed(2)}</span>
                   </div>
                   
-                  <div className="booking-actions" style={{marginTop: '1.5rem', display: 'flex', gap: '1rem'}}>
+                  <div className="booking-actions" style={{marginTop: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
+                    {booking.whatsapp_number && (
+                      <a 
+                        href={`https://api.whatsapp.com/send?phone=${booking.whatsapp_number.replace(/[^0-9]/g, '')}&text=${encodeURIComponent(`Hello RideX, my Booking ID is #${booking.id} (${booking.bike_name || 'Bike'}). Pickup: ${booking.pickup_location || ''}`)}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn-secondary"
+                        style={{borderColor: '#25D366', color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', padding: '8px 14px', borderRadius: '8px'}}
+                      >
+                        <span>📲</span> WhatsApp Receipt
+                      </a>
+                    )}
                     {canCancel && (
                       <button onClick={() => handleCancel(booking.id)} className="btn-secondary" style={{borderColor: '#ff3d00', color: '#ff3d00'}}>
                         Cancel Booking

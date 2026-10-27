@@ -38,6 +38,10 @@ add_col('user', 'kyc_rejected_reason', 'VARCHAR(200)')
 
 add_col('booking', 'pickup_station_id', 'INTEGER REFERENCES station(id)')
 add_col('booking', 'dropoff_station_id', 'INTEGER REFERENCES station(id)')
+add_col('booking', 'pickup_location', 'VARCHAR(250)')
+add_col('booking', 'dropoff_location', 'VARCHAR(250)')
+add_col('booking', 'whatsapp_number', 'VARCHAR(30)')
+add_col('booking', 'whatsapp_status', "VARCHAR(30) DEFAULT 'Pending'")
 add_col('booking', 'payment_method', "VARCHAR(50) DEFAULT 'Razorpay'")
 add_col('booking', 'payment_id', 'VARCHAR(100)')
 

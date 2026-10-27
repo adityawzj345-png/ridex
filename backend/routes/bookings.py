@@ -62,6 +62,13 @@ def create_booking():
     
     pickup_station_id = data.get('pickup_station_id')
     dropoff_station_id = data.get('dropoff_station_id') or pickup_station_id
+    
+    # Custom user-filled pickup and dropoff locations
+    pickup_location = data.get('pickup_location')
+    dropoff_location = data.get('dropoff_location') or pickup_location
+    
+    # User WhatsApp Phone Number
+    whatsapp_number = data.get('whatsapp_number') or user.phone or ''
 
     new_booking = Booking(
         user_id=user_id,
@@ -71,6 +78,9 @@ def create_booking():
         total_price=total_price,
         pickup_station_id=pickup_station_id,
         dropoff_station_id=dropoff_station_id,
+        pickup_location=pickup_location,
+        dropoff_location=dropoff_location,
+        whatsapp_number=whatsapp_number,
         payment_method=data.get('payment_method', 'Razorpay'),
         payment_id=data.get('payment_id', 'pay_default')
     )
@@ -78,9 +88,23 @@ def create_booking():
     db.session.add(new_booking)
     db.session.commit()
     
+    # Send WhatsApp Confirmation Alert
+    whatsapp_result = None
+    if whatsapp_number:
+        try:
+            from whatsapp_service import format_booking_whatsapp_message, send_whatsapp_notification
+            booking_dict = new_booking.to_dict()
+            msg_text = format_booking_whatsapp_message(booking_dict, user_name=user.name, status="Confirmed")
+            whatsapp_result = send_whatsapp_notification(whatsapp_number, msg_text)
+            new_booking.whatsapp_status = "Sent" if whatsapp_result.get("success") else "Failed"
+            db.session.commit()
+        except Exception as e:
+            print(f"[WhatsApp Dispatch Error]: {e}")
+    
     return jsonify({
         "message": "Booking created successfully", 
-        "booking": new_booking.to_dict()
+        "booking": new_booking.to_dict(),
+        "whatsapp_notification": whatsapp_result
     }), 201
 
 @bookings_bp.route('/', methods=['GET'])
@@ -95,6 +119,7 @@ def get_user_bookings():
 def cancel_booking(booking_id):
     user_id = get_jwt_identity()
     booking = Booking.query.get(booking_id)
+    user = User.query.get(user_id)
     
     if not booking:
         return jsonify({"error": "Booking not found"}), 404
@@ -111,4 +136,21 @@ def cancel_booking(booking_id):
     booking.status = 'Cancelled'
     db.session.commit()
     
-    return jsonify({"message": "Booking cancelled successfully", "booking": booking.to_dict()}), 200
+    # Send WhatsApp Cancellation Alert
+    whatsapp_result = None
+    target_phone = booking.whatsapp_number or (user.phone if user else None)
+    if target_phone:
+        try:
+            from whatsapp_service import format_booking_whatsapp_message, send_whatsapp_notification
+            b_dict = booking.to_dict()
+            user_name = user.name if user else "Rider"
+            msg_text = format_booking_whatsapp_message(b_dict, user_name=user_name, status="Cancelled")
+            whatsapp_result = send_whatsapp_notification(target_phone, msg_text)
+        except Exception as e:
+            print(f"[WhatsApp Cancellation Error]: {e}")
+    
+    return jsonify({
+        "message": "Booking cancelled successfully", 
+        "booking": booking.to_dict(),
+        "whatsapp_notification": whatsapp_result
+    }), 200

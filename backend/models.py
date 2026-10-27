@@ -99,9 +99,15 @@ class Booking(db.Model):
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default="Confirmed") # Confirmed, Completed, Cancelled
     
-    # Pickup / Drop-off Station Locations
+    # Pickup / Drop-off Custom Locations & Station References
     pickup_station_id = db.Column(db.Integer, db.ForeignKey('station.id'), nullable=True)
     dropoff_station_id = db.Column(db.Integer, db.ForeignKey('station.id'), nullable=True)
+    pickup_location = db.Column(db.String(250), nullable=True)
+    dropoff_location = db.Column(db.String(250), nullable=True)
+
+    # WhatsApp Notifications
+    whatsapp_number = db.Column(db.String(30), nullable=True)
+    whatsapp_status = db.Column(db.String(30), default="Pending") # Sent, Simulated, Failed
     
     # Payment details
     payment_method = db.Column(db.String(50), default="Razorpay")
@@ -113,6 +119,8 @@ class Booking(db.Model):
     dropoff_station = db.relationship('Station', foreign_keys=[dropoff_station_id])
 
     def to_dict(self):
+        p_name = self.pickup_location or (self.pickup_station.name if self.pickup_station else "Central Station")
+        d_name = self.dropoff_location or (self.dropoff_station.name if self.dropoff_station else p_name)
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -128,6 +136,10 @@ class Booking(db.Model):
             "pickup_station_name": self.pickup_station.name if self.pickup_station else "Central Station",
             "dropoff_station_id": self.dropoff_station_id,
             "dropoff_station_name": self.dropoff_station.name if self.dropoff_station else "Central Station",
+            "pickup_location": p_name,
+            "dropoff_location": d_name,
+            "whatsapp_number": self.whatsapp_number,
+            "whatsapp_status": self.whatsapp_status,
             "payment_method": self.payment_method or "Online",
             "payment_id": self.payment_id,
             "created_at": self.created_at.isoformat()

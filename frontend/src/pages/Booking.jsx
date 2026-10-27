@@ -10,14 +10,21 @@ export default function Booking() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   
-  // Form states
+  // Schedule states
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [bike, setBike] = useState(null);
   const [stations, setStations] = useState([]);
+  
+  // Custom Locations (User khud fill kare)
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [dropoffLocation, setDropoffLocation] = useState('');
   const [pickupStationId, setPickupStationId] = useState('');
   const [dropoffStationId, setDropoffStationId] = useState('');
   const [returnToSameStation, setReturnToSameStation] = useState(true);
+  
+  // WhatsApp Notification State
+  const [whatsappNumber, setWhatsappNumber] = useState(user?.phone || '');
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +36,7 @@ export default function Booking() {
   // Payment Gateway Modal states
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [orderData, setOrderData] = useState(null);
-  const [paymentGateway, setPaymentGateway] = useState('razorpay'); // 'razorpay'
+  const [paymentGateway] = useState('razorpay');
   const [paymentTab, setPaymentTab] = useState('upi'); // 'upi', 'card', 'netbanking'
   const [selectedUpiApp, setSelectedUpiApp] = useState('GPay');
   const [customUpiId, setCustomUpiId] = useState('rider@okaxis');
@@ -43,6 +50,7 @@ export default function Booking() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStep, setPaymentStep] = useState('checkout'); // 'checkout', 'processing', 'success'
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  const [whatsappInfo, setWhatsappInfo] = useState(null);
   const [kycError, setKycError] = useState(null);
 
   useEffect(() => {
@@ -58,7 +66,6 @@ export default function Booking() {
     const loadData = async () => {
       try {
         setLoading(true);
-        // Fetch bike details and available stations concurrently
         const [bikeData, stationsData] = await Promise.all([
           apiFetch(`/bikes/${bikeId}`),
           apiFetch('/stations/')
@@ -67,13 +74,18 @@ export default function Booking() {
         setBike(bikeData);
         setStations(stationsData);
 
-        // Pre-select pickup station based on bike's current station or first station
-        if (bikeData.station_id) {
-          setPickupStationId(bikeData.station_id);
-          setDropoffStationId(bikeData.station_id);
-        } else if (stationsData.length > 0) {
-          setPickupStationId(stationsData[0].id);
-          setDropoffStationId(stationsData[0].id);
+        // Pre-fill initial locations based on bike station or first hub
+        const initialStation = stationsData.find(s => s.id === bikeData.station_id) || stationsData[0];
+        if (initialStation) {
+          setPickupStationId(initialStation.id);
+          setDropoffStationId(initialStation.id);
+          const defaultLoc = `${initialStation.name}, ${initialStation.city}`;
+          setPickupLocation(defaultLoc);
+          setDropoffLocation(defaultLoc);
+        }
+
+        if (user.phone) {
+          setWhatsappNumber(user.phone);
         }
       } catch (err) {
         setError(err.message || 'Failed to load booking details');
@@ -85,12 +97,13 @@ export default function Booking() {
     loadData();
   }, [bikeId, navigate, user]);
 
-  // Synchronize dropoff station if returnToSameStation is checked
+  // Synchronize dropoff location if returnToSameStation is checked
   useEffect(() => {
-    if (returnToSameStation && pickupStationId) {
+    if (returnToSameStation) {
+      setDropoffLocation(pickupLocation);
       setDropoffStationId(pickupStationId);
     }
-  }, [returnToSameStation, pickupStationId]);
+  }, [returnToSameStation, pickupLocation, pickupStationId]);
 
   // Calculate estimated duration & total price
   useEffect(() => {
@@ -108,6 +121,22 @@ export default function Booking() {
     }
   }, [startDate, endDate, bike]);
 
+  // Handle Preset Hub selection to autofill text inputs
+  const handleSelectPickupPreset = (station) => {
+    setPickupStationId(station.id);
+    const locText = `${station.name}, ${station.city} (${station.address})`;
+    setPickupLocation(locText);
+    if (returnToSameStation) {
+      setDropoffLocation(locText);
+      setDropoffStationId(station.id);
+    }
+  };
+
+  const handleSelectDropoffPreset = (station) => {
+    setDropoffStationId(station.id);
+    setDropoffLocation(`${station.name}, ${station.city} (${station.address})`);
+  };
+
   // Handle Opening Checkout Modal and Creating Order
   const handleInitiateCheckout = async (e) => {
     e.preventDefault();
@@ -118,20 +147,25 @@ export default function Booking() {
       return;
     }
 
-    if (!pickupStationId) {
-      alert("Please select a pickup rental hub.");
+    if (!pickupLocation.trim()) {
+      alert("Kripya booking ki jagah (Pickup Location) fill karein.");
       return;
     }
 
-    const finalDropoffId = returnToSameStation ? pickupStationId : dropoffStationId;
-    if (!finalDropoffId) {
-      alert("Please select a drop-off rental hub.");
+    const finalDropoff = returnToSameStation ? pickupLocation : dropoffLocation;
+    if (!finalDropoff.trim()) {
+      alert("Kripya bike chhodne ki jagah (Drop-off Location) fill karein.");
+      return;
+    }
+
+    if (!whatsappNumber.trim()) {
+      alert("Kripya apna WhatsApp mobile number enter karein taaki confirmation message receive ho sake.");
       return;
     }
 
     setIsProcessingPayment(true);
     try {
-      // 1. Call Backend to create Payment Order (Razorpay Sandbox)
+      // Create Payment Order (Razorpay Sandbox)
       const order = await apiFetch('/payment/create-order', {
         method: 'POST',
         body: JSON.stringify({
@@ -159,7 +193,6 @@ export default function Booking() {
     setPaymentStep('processing');
 
     try {
-      // 1. Verify Payment with backend
       const generatedPaymentId = `pay_rzp_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
       const methodLabel = paymentTab === 'upi' 
         ? `Razorpay UPI (${selectedUpiApp})` 
@@ -167,6 +200,7 @@ export default function Booking() {
           ? `Razorpay Card (*${cardDetails.number.slice(-4)})` 
           : `Razorpay NetBanking (${selectedBank})`;
 
+      // 1. Verify Payment
       await apiFetch('/payment/verify', {
         method: 'POST',
         body: JSON.stringify({
@@ -175,10 +209,10 @@ export default function Booking() {
         })
       });
 
-      // 2. Create the Booking in Database
+      // 2. Create Booking with user filled custom locations and WhatsApp number
       const startIso = new Date(startDate).toISOString();
       const endIso = new Date(endDate).toISOString();
-      const finalDropoffId = returnToSameStation ? pickupStationId : dropoffStationId;
+      const finalDropoff = returnToSameStation ? pickupLocation : dropoffLocation;
 
       const bookingResponse = await apiFetch('/bookings/', {
         method: 'POST',
@@ -187,14 +221,18 @@ export default function Booking() {
           start_time: startIso,
           end_time: endIso,
           total_price: parseFloat(estimatedTotal),
-          pickup_station_id: parseInt(pickupStationId),
-          dropoff_station_id: parseInt(finalDropoffId),
+          pickup_station_id: pickupStationId ? parseInt(pickupStationId) : null,
+          dropoff_station_id: returnToSameStation ? (pickupStationId ? parseInt(pickupStationId) : null) : (dropoffStationId ? parseInt(dropoffStationId) : null),
+          pickup_location: pickupLocation.trim(),
+          dropoff_location: finalDropoff.trim(),
+          whatsapp_number: whatsappNumber.trim(),
           payment_method: methodLabel,
           payment_id: generatedPaymentId
         })
       });
 
       setConfirmedBooking(bookingResponse.booking);
+      setWhatsappInfo(bookingResponse.whatsapp_notification);
       setPaymentStep('success');
     } catch (err) {
       if (err.message && err.message.toLowerCase().includes('kyc')) {
@@ -208,9 +246,6 @@ export default function Booking() {
       setIsProcessingPayment(false);
     }
   };
-
-  const selectedPickup = stations.find(s => String(s.id) === String(pickupStationId));
-  const selectedDropoff = stations.find(s => String(s.id) === String(returnToSameStation ? pickupStationId : dropoffStationId));
 
   if (loading) {
     return (
@@ -240,7 +275,7 @@ export default function Booking() {
     <div className="booking-page animate-fade-in">
       <div className="booking-container">
         
-        {/* Left Side: Bike Info & Ride Summary */}
+        {/* Left Side: Summary Box */}
         <div className="booking-details glass-panel">
           <div className="badge">Booking Summary</div>
           
@@ -269,19 +304,25 @@ export default function Booking() {
               <span className="highlight-text">{durationHours > 0 ? `${durationHours} hours` : 'Select dates'}</span>
             </div>
             <div className="summary-row">
-              <span>Pickup Hub</span>
+              <span>Pickup Spot</span>
               <span className="station-summary-tag">
-                📍 {selectedPickup ? `${selectedPickup.name} (${selectedPickup.city})` : 'Select Station'}
+                📍 {pickupLocation || 'Not specified'}
               </span>
             </div>
             <div className="summary-row">
-              <span>Return Hub</span>
+              <span>Drop-off Spot</span>
               <span className="station-summary-tag">
-                🏁 {selectedDropoff ? `${selectedDropoff.name} (${selectedDropoff.city})` : 'Select Station'}
+                🏁 {returnToSameStation ? pickupLocation : (dropoffLocation || 'Not specified')}
               </span>
             </div>
             <div className="summary-row">
-              <span>Platform & Helmet Fee</span>
+              <span>WhatsApp Alerts</span>
+              <span style={{color: '#25D366', fontWeight: 600}}>
+                💬 {whatsappNumber ? whatsappNumber : 'Enabled'}
+              </span>
+            </div>
+            <div className="summary-row">
+              <span>Helmet & Taxes</span>
               <span style={{color: '#00e676'}}>Included Free</span>
             </div>
             <div className="summary-divider"></div>
@@ -293,20 +334,20 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* Secure Guarantee Badge */}
-          <div className="secure-badge glass-panel">
-            <span className="shield-icon">🛡️</span>
+          {/* WhatsApp Guarantee Alert */}
+          <div className="secure-badge glass-panel" style={{marginTop: '20px', borderLeft: '4px solid #25D366'}}>
+            <span className="shield-icon">📲</span>
             <div>
-              <strong>RideX Secure Guarantee</strong>
-              <p>24/7 Roadside Assistance & Instant Helmet Included</p>
+              <strong style={{color: '#25D366'}}>Instant WhatsApp Confirmation</strong>
+              <p>Booking status, live receipt, and PIN will be sent directly to your WhatsApp.</p>
             </div>
           </div>
         </div>
         
-        {/* Right Side: Form (Dates, Station Pickers & Checkout trigger) */}
+        {/* Right Side: Form (Custom Locations, WhatsApp & Dates) */}
         <div className="booking-form-wrapper glass-panel">
           <h2>Schedule Your Ride</h2>
-          <p className="form-subtitle">Choose rental stations and your pickup & return schedule.</p>
+          <p className="form-subtitle">Enter your pickup and drop-off locations and choose your ride timings.</p>
 
           {kycError && (
             <div className="kyc-warning-banner glass-panel">
@@ -323,37 +364,40 @@ export default function Booking() {
           
           <form onSubmit={handleInitiateCheckout} className="booking-form">
             
-            {/* Station Selection Section */}
+            {/* Step 1: Location Inputs (User khud fill kare) */}
             <div className="form-section-title">
               <span className="section-step">1</span>
-              <span>Select Rental Stations</span>
+              <span>Pickup & Drop-off Locations (Aapki Jagah)</span>
             </div>
 
-            {/* Pickup Station Dropdown */}
+            {/* Pickup Location Custom Field */}
             <div className="form-group">
-              <label>Pickup Station Hub <span className="required-star">*</span></label>
-              <select 
-                className="form-control station-select"
-                value={pickupStationId}
-                onChange={(e) => setPickupStationId(e.target.value)}
+              <label>Booking / Pickup ki Jagah (Enter Pickup Address) <span className="required-star">*</span></label>
+              <input 
+                type="text" 
+                className="form-control location-input" 
+                value={pickupLocation}
+                onChange={(e) => setPickupLocation(e.target.value)}
+                placeholder="e.g. Connaught Place Hub / Street address / Landmark"
                 required
-              >
-                <option value="">-- Choose Pickup Hub --</option>
-                {stations.map(st => (
-                  <option key={st.id} value={st.id}>
-                    [{st.city}] {st.name} — {st.address}
-                  </option>
-                ))}
-              </select>
+              />
               
-              {selectedPickup && (
-                <div className="station-preview-box">
-                  <div className="station-preview-header">
-                    <span className="station-city-badge">{selectedPickup.city}</span>
-                    <span className="station-name">{selectedPickup.name}</span>
+              {/* Quick Preset Hubs */}
+              {stations.length > 0 && (
+                <div className="quick-presets">
+                  <span className="presets-label">⚡ Quick Station Presets:</span>
+                  <div className="preset-chips">
+                    {stations.slice(0, 4).map(st => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        className={`preset-chip ${pickupStationId === st.id ? 'active' : ''}`}
+                        onClick={() => handleSelectPickupPreset(st)}
+                      >
+                        📍 {st.name} ({st.city})
+                      </button>
+                    ))}
                   </div>
-                  <p className="station-address">📍 {selectedPickup.address}</p>
-                  <p className="station-contact">📞 Helpline: {selectedPickup.contact_number}</p>
                 </div>
               )}
             </div>
@@ -367,45 +411,47 @@ export default function Booking() {
                   onChange={(e) => setReturnToSameStation(e.target.checked)} 
                 />
                 <span className="checkmark"></span>
-                <span className="checkbox-label">Return bike to the same station ({selectedPickup?.name || 'Pickup Hub'})</span>
+                <span className="checkbox-label">Bike usi jagah chhodenge jaha se pickup kiye hain (Same Location)</span>
               </label>
             </div>
 
-            {/* Return Station Dropdown (Conditional) */}
+            {/* Drop-off Location Custom Field (Conditional) */}
             {!returnToSameStation && (
-              <div className="form-group animate-fade-in" style={{marginTop: '1rem'}}>
-                <label>Drop-off / Return Station Hub <span className="required-star">*</span></label>
-                <select 
-                  className="form-control station-select"
-                  value={dropoffStationId}
-                  onChange={(e) => setDropoffStationId(e.target.value)}
+              <div className="form-group animate-fade-in" style={{marginTop: '1.2rem'}}>
+                <label>Bike Chhodne ki Jagah (Enter Return / Drop-off Address) <span className="required-star">*</span></label>
+                <input 
+                  type="text" 
+                  className="form-control location-input" 
+                  value={dropoffLocation}
+                  onChange={(e) => setDropoffLocation(e.target.value)}
+                  placeholder="e.g. Bandra West Terminal / Home / Destination Landmark"
                   required
-                >
-                  <option value="">-- Choose Drop-off Hub --</option>
-                  {stations.map(st => (
-                    <option key={st.id} value={st.id}>
-                      [{st.city}] {st.name} — {st.address}
-                    </option>
-                  ))}
-                </select>
-
-                {selectedDropoff && (
-                  <div className="station-preview-box">
-                    <div className="station-preview-header">
-                      <span className="station-city-badge">{selectedDropoff.city}</span>
-                      <span className="station-name">{selectedDropoff.name}</span>
+                />
+                {/* Quick Presets for Drop-off */}
+                {stations.length > 0 && (
+                  <div className="quick-presets">
+                    <span className="presets-label">⚡ Quick Drop-off Hubs:</span>
+                    <div className="preset-chips">
+                      {stations.slice(0, 4).map(st => (
+                        <button
+                          key={st.id}
+                          type="button"
+                          className={`preset-chip ${dropoffStationId === st.id ? 'active' : ''}`}
+                          onClick={() => handleSelectDropoffPreset(st)}
+                        >
+                          🏁 {st.name} ({st.city})
+                        </button>
+                      ))}
                     </div>
-                    <p className="station-address">🏁 {selectedDropoff.address}</p>
-                    <p className="station-contact">📞 Helpline: {selectedDropoff.contact_number}</p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Date & Time Selection Section */}
+            {/* Step 2: Schedule Dates */}
             <div className="form-section-title" style={{marginTop: '2rem'}}>
               <span className="section-step">2</span>
-              <span>Choose Rental Schedule</span>
+              <span>Pickup & Drop-off Timings</span>
             </div>
 
             <div className="dates-grid">
@@ -434,6 +480,30 @@ export default function Booking() {
               </div>
             </div>
 
+            {/* Step 3: WhatsApp Mobile Number for Confirmation Alert */}
+            <div className="form-section-title" style={{marginTop: '2rem'}}>
+              <span className="section-step">3</span>
+              <span>WhatsApp Alerts (Confirmation Notification)</span>
+            </div>
+
+            <div className="form-group">
+              <label>WhatsApp Mobile Number (Confirmation message ke liye) <span className="required-star">*</span></label>
+              <div className="whatsapp-input-wrap">
+                <span className="whatsapp-icon">💬</span>
+                <input 
+                  type="tel" 
+                  className="form-control whatsapp-input" 
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  placeholder="+91 9876543210"
+                  required
+                />
+              </div>
+              <p className="field-hint">
+                ✅ Email ke bajaye booking ka confirmation/status message directly is WhatsApp number par jayega.
+              </p>
+            </div>
+
             {/* Payment Summary Preview */}
             <div className="payment-gateway-preview glass-panel">
               <div className="pg-header">
@@ -450,9 +520,8 @@ export default function Booking() {
                 <span className="pill">GPay</span>
                 <span className="pill">PhonePe</span>
                 <span className="pill">Paytm</span>
-                <span className="pill">Visa</span>
-                <span className="pill">MasterCard</span>
-                <span className="pill">UPI QR</span>
+                <span className="pill">Cards</span>
+                <span className="pill" style={{borderColor: '#25D366', color: '#25D366'}}>💬 WhatsApp Alert</span>
               </div>
             </div>
             
@@ -501,13 +570,18 @@ export default function Booking() {
                     <span className="order-label">Order ID: {orderData.order_id}</span>
                     <h3 className="order-bike-title">{bike.name} ({durationHours} hrs)</h3>
                     <p className="order-stations">
-                      {selectedPickup?.city}: {selectedPickup?.name} ➔ {selectedDropoff?.name}
+                      📍 {pickupLocation} ➔ 🏁 {returnToSameStation ? pickupLocation : dropoffLocation}
                     </p>
                   </div>
                   <div className="order-amount-box text-right">
                     <span className="amount-label">Amount to Pay</span>
                     <span className="amount-val text-accent">₹{orderData.amount.toFixed(2)}</span>
                   </div>
+                </div>
+
+                {/* WhatsApp Notification Alert inside modal */}
+                <div className="modal-whatsapp-banner">
+                  <span>💬 Confirmation alert will be sent to <strong>{whatsappNumber}</strong></span>
                 </div>
 
                 {/* Payment Tabs */}
@@ -565,7 +639,7 @@ export default function Booking() {
                         <button 
                           type="button" 
                           className="btn-secondary verify-btn" 
-                          onClick={() => alert(`UPI ID ${customUpiId} verified successfully!`)}
+                          onClick={() => alert(`UPI ID ${customUpiId} verified!`)}
                         >
                           Verify
                         </button>
@@ -574,9 +648,6 @@ export default function Booking() {
 
                     <div className="qr-simulator-box">
                       <div className="dummy-qr">
-                        <div className="qr-corner top-left"></div>
-                        <div className="qr-corner top-right"></div>
-                        <div className="qr-corner bottom-left"></div>
                         <div className="qr-code-icon">📱</div>
                         <span>Scan & Pay with any UPI App</span>
                       </div>
@@ -690,7 +761,7 @@ export default function Booking() {
                 <div className="payment-processing-spinner"></div>
                 <h3 style={{marginTop: '20px'}}>Contacting Payment Gateway...</h3>
                 <p style={{color: 'var(--text-muted)'}}>
-                  Authorizing transaction with Razorpay Bank Servers. Please do not refresh.
+                  Authorizing transaction & generating WhatsApp confirmation...
                 </p>
               </div>
             )}
@@ -699,12 +770,35 @@ export default function Booking() {
             {paymentStep === 'success' && confirmedBooking && (
               <div className="modal-body text-center animate-fade-in success-screen">
                 <div className="success-icon-badge">✓</div>
-                <h2>Payment Successful!</h2>
-                <p className="success-sub">Your ride booking is confirmed and ready for pickup.</p>
+                <h2>Booking Confirmed!</h2>
+                <p className="success-sub">Payment successful & ride scheduled.</p>
+
+                {/* WhatsApp Confirmation Banner */}
+                <div className="whatsapp-confirmed-box glass-panel">
+                  <div className="whatsapp-header-row">
+                    <span className="wa-icon">💬</span>
+                    <div>
+                      <strong>WhatsApp Message Sent!</strong>
+                      <p>Confirmation message has been dispatched to <strong>{confirmedBooking.whatsapp_number || whatsappNumber}</strong></p>
+                    </div>
+                  </div>
+
+                  {/* Direct Click to Open WhatsApp Chat */}
+                  {whatsappInfo?.whatsapp_link && (
+                    <a 
+                      href={whatsappInfo.whatsapp_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="btn-whatsapp-open"
+                    >
+                      <span>📲</span> Open Confirmation in WhatsApp
+                    </a>
+                  )}
+                </div>
 
                 <div className="receipt-box glass-panel">
                   <div className="receipt-row">
-                    <span>Booking Reference</span>
+                    <span>Booking ID</span>
                     <strong>#{confirmedBooking.id}</strong>
                   </div>
                   <div className="receipt-row">
@@ -716,12 +810,12 @@ export default function Booking() {
                     <strong>{bike.brand} {bike.name}</strong>
                   </div>
                   <div className="receipt-row">
-                    <span>Pickup Hub</span>
-                    <strong>{confirmedBooking.pickup_station_name}</strong>
+                    <span>Pickup Location</span>
+                    <strong>{confirmedBooking.pickup_location}</strong>
                   </div>
                   <div className="receipt-row">
-                    <span>Drop-off Hub</span>
-                    <strong>{confirmedBooking.dropoff_station_name}</strong>
+                    <span>Drop-off Location</span>
+                    <strong>{confirmedBooking.dropoff_location}</strong>
                   </div>
                   <div className="receipt-row">
                     <span>Total Paid</span>
@@ -735,7 +829,7 @@ export default function Booking() {
                     style={{width: '100%'}}
                     onClick={() => navigate('/my-bookings')}
                   >
-                    View My Bookings & Receipt ➔
+                    Go to My Bookings ➔
                   </button>
                 </div>
               </div>
