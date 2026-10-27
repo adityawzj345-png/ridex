@@ -48,6 +48,12 @@ add_col('booking', 'payment_id', 'VARCHAR(100)')
 # Default all users to Verified so existing users aren't locked out
 cur.execute("UPDATE user SET kyc_status = 'Verified' WHERE kyc_status IS NULL OR kyc_status = 'Unverified';")
 
+# Normalize legacy categories & ensure all prices are strictly under 500
+cur.execute("UPDATE bike SET type = 'Sports' WHERE type = 'Sport';")
+cur.execute("UPDATE bike SET type = 'Roadster' WHERE type = 'Cruiser';")
+cur.execute("UPDATE bike SET type = 'Electric' WHERE type = 'Scooter';")
+cur.execute("UPDATE bike SET price_per_hour = 489.0 WHERE price_per_hour >= 500.0;")
+
 con.commit()
 con.close()
 print("Migration completed!")

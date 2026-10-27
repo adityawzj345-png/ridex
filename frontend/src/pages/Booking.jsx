@@ -296,12 +296,21 @@ export default function Booking() {
             <span className="amount">{bike.price_per_hour}</span>
             <span className="period">/hour</span>
           </div>
+          <div style={{fontSize: '0.8rem', color: '#00e676', marginTop: '-10px', marginBottom: '15px', fontWeight: 600}}>
+            ✓ Guaranteed Under ₹500/hr · {bike.type}
+          </div>
           
           <div className="summary-box">
             <p className="summary-title">Ride Breakdown</p>
             <div className="summary-row">
+              <span>Hourly Rate</span>
+              <span className="highlight-text">₹{bike.price_per_hour} / hour</span>
+            </div>
+            <div className="summary-row">
               <span>Duration</span>
-              <span className="highlight-text">{durationHours > 0 ? `${durationHours} hours` : 'Select dates'}</span>
+              <span className="highlight-text">
+                {durationHours > 0 ? `${durationHours} hrs (₹${bike.price_per_hour} × ${durationHours})` : 'Select dates'}
+              </span>
             </div>
             <div className="summary-row">
               <span>Pickup Spot</span>

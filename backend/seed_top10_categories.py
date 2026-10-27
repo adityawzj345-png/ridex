@@ -581,9 +581,15 @@ def seed_categories():
             legacy.price_per_hour = p
             updated_count += 1
 
-    # Ensure no bike in DB is above 500
+    # Ensure no bike in DB is above 500 and types are normalized
     all_bikes = Bike.query.all()
     for b in all_bikes:
+        if b.type == 'Sport':
+            b.type = 'Sports'
+        elif b.type == 'Cruiser':
+            b.type = 'Roadster'
+        elif b.type == 'Scooter':
+            b.type = 'Electric'
         if b.price_per_hour > 499.0:
             b.price_per_hour = 489.0
             updated_count += 1
