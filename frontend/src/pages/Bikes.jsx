@@ -255,7 +255,7 @@ export default function Bikes() {
           <input 
             type="range" 
             min="15" 
-            max="120" 
+            max="150" 
             step="5"
             value={maxPrice} 
             onChange={(e) => setMaxPrice(Number(e.target.value))}

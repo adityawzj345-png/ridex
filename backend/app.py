@@ -61,12 +61,12 @@ with app.app_context():
         db.session.commit()
         print("Default rental stations seeded successfully.")
 
-    # Auto-seed the database with Top 10 categories if needed
+    # Auto-seed the database with Top 10 categories (7+ bikes each) if needed
     try:
         from seed_top10_categories import seed_categories
-        if Bike.query.count() < 10:
+        if Bike.query.count() < 70:
             seed_categories()
-            print("Database seeded with Top 10 Categories.")
+            print("Database seeded with Top 10 Categories (7+ bikes each).")
     except Exception as e:
         print(f"Error seeding categories: {e}")
 
