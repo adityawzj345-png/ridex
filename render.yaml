@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ridex
+    runtime: python
+    buildCommand: bash build.sh
+    startCommand: cd backend && gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URI
+        value: sqlite:///ridex.db
+      - key: PYTHON_VERSION
+        value: 3.11.9
