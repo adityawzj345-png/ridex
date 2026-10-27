@@ -93,7 +93,7 @@ export default function Bikes() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState(initialCategory);
-  const [maxPrice, setMaxPrice] = useState(150);
+  const [maxPrice, setMaxPrice] = useState(500);
 
   useEffect(() => {
     const fetchBikes = async () => {
@@ -254,9 +254,9 @@ export default function Bikes() {
           </div>
           <input 
             type="range" 
-            min="15" 
-            max="150" 
-            step="5"
+            min="25" 
+            max="500" 
+            step="10"
             value={maxPrice} 
             onChange={(e) => setMaxPrice(Number(e.target.value))}
             style={{accentColor: 'var(--accent-color)'}}
@@ -284,7 +284,7 @@ export default function Bikes() {
             <button 
               className="btn-primary" 
               style={{marginTop: '15px'}} 
-              onClick={() => { setSelectedType('All'); setMaxPrice(120); setSearchTerm(''); }}
+              onClick={() => { setSelectedType('All'); setMaxPrice(500); setSearchTerm(''); }}
             >
               View All Bikes
             </button>
