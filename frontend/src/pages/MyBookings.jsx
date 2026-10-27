@@ -88,21 +88,37 @@ export default function MyBookings() {
                   {booking.status}
                 </div>
                 <div className="booking-info">
-                  <h3>Booking #{booking.id}</h3>
-                  <p><strong>Bike ID:</strong> {booking.bike_id}</p>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px'}}>
+                    <h3 style={{margin: 0}}>Booking #{booking.id}</h3>
+                    {booking.payment_method && (
+                      <span style={{fontSize: '0.75rem', background: 'rgba(255,255,255,0.08)', padding: '2px 8px', borderRadius: '12px', color: '#00e676'}}>
+                        ✓ {booking.payment_method}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{margin: '0 0 10px 0', color: '#fff', fontSize: '1.1rem', fontWeight: '600'}}>
+                    {booking.bike_brand ? `${booking.bike_brand} ${booking.bike_name}` : `Bike #${booking.bike_id}`}
+                  </p>
+                  
+                  {/* Stations Info */}
+                  <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', margin: '8px 0 14px 0', fontSize: '0.85rem', color: '#bbb'}}>
+                    <span>📍 <strong>Pickup:</strong> {booking.pickup_station_name || 'Central Hub'}</span>
+                    <span>🏁 <strong>Return:</strong> {booking.dropoff_station_name || 'Central Hub'}</span>
+                  </div>
+
                   <div className="booking-dates">
                     <div className="date-box">
-                      <span className="label">Pickup</span>
+                      <span className="label">Pickup Time</span>
                       <span>{new Date(booking.start_time).toLocaleString()}</span>
                     </div>
                     <div className="date-box">
-                      <span className="label">Drop-off</span>
+                      <span className="label">Drop-off Time</span>
                       <span>{new Date(booking.end_time).toLocaleString()}</span>
                     </div>
                   </div>
                   <div className="booking-price">
-                    <span>Total Amount:</span>
-                    <span className="amount">${booking.total_price.toFixed(2)}</span>
+                    <span>Total Paid:</span>
+                    <span className="amount">₹{booking.total_price.toFixed(2)}</span>
                   </div>
                   
                   <div className="booking-actions" style={{marginTop: '1.5rem', display: 'flex', gap: '1rem'}}>

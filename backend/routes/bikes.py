@@ -92,12 +92,14 @@ def add_bike():
             file.save(filepath)
             image_url = f"/uploads/bikes/{filename}"
         
+    station_id = request.form.get('station_id')
     new_bike = Bike(
         name=name,
         brand=brand,
         type=type,
         price_per_hour=float(price_per_hour),
-        image_url=image_url
+        image_url=image_url,
+        station_id=int(station_id) if station_id and station_id.isdigit() else None
     )
     
     db.session.add(new_bike)

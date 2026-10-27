@@ -12,6 +12,7 @@ cd ..
 echo "Installing backend dependencies..."
 cd backend
 pip install -r requirements.txt
+python migrate_db.py || true
 cd ..
 
 echo "Build completed successfully!"
