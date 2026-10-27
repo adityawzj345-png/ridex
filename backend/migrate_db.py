@@ -51,3 +51,12 @@ cur.execute("UPDATE user SET kyc_status = 'Verified' WHERE kyc_status IS NULL OR
 con.commit()
 con.close()
 print("Migration completed!")
+
+# Seed top 10 categories automatically
+try:
+    from seed_top10_categories import seed_categories
+    from app import app
+    with app.app_context():
+        seed_categories()
+except Exception as e:
+    print(f"Category seeding note: {e}")

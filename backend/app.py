@@ -61,28 +61,23 @@ with app.app_context():
         db.session.commit()
         print("Default rental stations seeded successfully.")
 
-    # Auto-seed the database with bikes if it is empty
-    if Bike.query.count() == 0:
-        s1 = Station.query.first()
-        station_id = s1.id if s1 else None
-        demo_bikes = [
-            Bike(name="Ninja ZX-10R", brand="Kawasaki", type="Sport", price_per_hour=45.0, image_url="/bikes/sport.jpg", station_id=station_id),
-            Bike(name="Iron 883", brand="Harley-Davidson", type="Cruiser", price_per_hour=55.0, image_url="/bikes/cruiser.jpg", station_id=station_id),
-            Bike(name="Vespa Primavera", brand="Vespa", type="Scooter", price_per_hour=15.0, image_url="/bikes/scooter.jpg", station_id=station_id),
-            Bike(name="CB300R", brand="Honda", type="Commuter", price_per_hour=25.0, image_url="/bikes/commuter.jpg", station_id=station_id)
-        ]
-        db.session.bulk_save_objects(demo_bikes)
-        db.session.commit()
-        print("Database seeded successfully with default bikes.")
-    else:
-        # Ensure existing bikes have a station_id
-        first_station = Station.query.first()
-        if first_station:
-            bikes_without_station = Bike.query.filter_by(station_id=None).all()
-            for b in bikes_without_station:
-                b.station_id = first_station.id
-            if bikes_without_station:
-                db.session.commit()
+    # Auto-seed the database with Top 10 categories if needed
+    try:
+        from seed_top10_categories import seed_categories
+        if Bike.query.count() < 10:
+            seed_categories()
+            print("Database seeded with Top 10 Categories.")
+    except Exception as e:
+        print(f"Error seeding categories: {e}")
+
+    # Ensure all existing bikes have a station_id
+    first_station = Station.query.first()
+    if first_station:
+        bikes_without_station = Bike.query.filter_by(station_id=None).all()
+        for b in bikes_without_station:
+            b.station_id = first_station.id
+        if bikes_without_station:
+            db.session.commit()
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
